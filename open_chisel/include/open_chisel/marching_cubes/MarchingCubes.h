@@ -28,118 +28,124 @@
 namespace chisel
 {
 
-    typedef std::vector<Mat3x3, Eigen::aligned_allocator<Mat3x3> > TriangleVector;
-    class MarchingCubes
+typedef std::vector<Mat3x3, Eigen::aligned_allocator<Mat3x3>> TriangleVector;
+class MarchingCubes
+{
+  public:
+    static int triangleTable[256][16];
+    static int edgeIndexPairs[12][2];
+
+    MarchingCubes();
+    virtual ~MarchingCubes();
+
+    static bool IsOccupied(const Eigen::Matrix<float, 8, 1> &vertexSDF)
     {
-        public:
-            static int triangleTable[256][16];
-            static int edgeIndexPairs[12][2];
+        const int index = CalculateVertexConfiguration(vertexSDF);
+        return triangleTable[index][0] != -1;
+    }
 
-            MarchingCubes();
-            virtual ~MarchingCubes();
+    static void MeshCube(const Eigen::Matrix<float, 3, 8> &vertex_coordinates, const Eigen::Matrix<float, 8, 1> &vertexSDF, TriangleVector *triangles)
+    {
+        assert(triangles != nullptr);
 
+        const int index = CalculateVertexConfiguration(vertexSDF);
 
-            static void MeshCube(const Eigen::Matrix<float, 3, 8>& vertex_coordinates, const Eigen::Matrix<float, 8, 1>& vertexSDF, TriangleVector* triangles)
-            {
-                assert(triangles != nullptr);
+        Eigen::Matrix<float, 3, 12> edgeCoords;
+        InterpolateEdgeVertices(vertex_coordinates, vertexSDF, &edgeCoords);
 
-                const int index = CalculateVertexConfiguration(vertexSDF);
+        const int *table_row = triangleTable[index];
 
-                Eigen::Matrix<float, 3, 12> edgeCoords;
-                InterpolateEdgeVertices(vertex_coordinates, vertexSDF, &edgeCoords);
+        int edgeIDX = 0;
+        int tableCol = 0;
+        while ((edgeIDX = table_row[tableCol]) != -1)
+        {
+            Eigen::Matrix3f triangle;
+            triangle.col(0) = edgeCoords.col(edgeIDX);
+            edgeIDX = table_row[tableCol + 1];
+            triangle.col(1) = edgeCoords.col(edgeIDX);
+            edgeIDX = table_row[tableCol + 2];
+            triangle.col(2) = edgeCoords.col(edgeIDX);
+            triangles->push_back(triangle);
+            tableCol += 3;
+        }
+    }
 
-                const int* table_row = triangleTable[index];
+    static void MeshCube(const Eigen::Matrix<float, 3, 8> &vertexCoords, const Eigen::Matrix<float, 8, 1> &vertexSDF, VertIndex *nextIDX, Mesh *mesh)
+    {
+        assert(nextIDX != nullptr);
+        assert(mesh != nullptr);
 
-                int edgeIDX = 0;
-                int tableCol = 0;
-                while ((edgeIDX = table_row[tableCol]) != -1)
-                {
-                    Eigen::Matrix3f triangle;
-                    triangle.col(0) = edgeCoords.col(edgeIDX);
-                    edgeIDX = table_row[tableCol + 1];
-                    triangle.col(1) = edgeCoords.col(edgeIDX);
-                    edgeIDX = table_row[tableCol + 2];
-                    triangle.col(2) = edgeCoords.col(edgeIDX);
-                    triangles->push_back(triangle);
-                    tableCol += 3;
-                }
-            }
+        const int index = CalculateVertexConfiguration(vertexSDF);
 
-            static void MeshCube(const Eigen::Matrix<float, 3, 8>& vertexCoords, const Eigen::Matrix<float, 8, 1>& vertexSDF, VertIndex* nextIDX, Mesh* mesh)
-            {
-                assert(nextIDX != nullptr);
-                assert(mesh != nullptr);
-                const int index = CalculateVertexConfiguration(vertexSDF);
+        Eigen::Matrix<float, 3, 12> edge_vertex_coordinates;
+        InterpolateEdgeVertices(vertexCoords, vertexSDF, &edge_vertex_coordinates);
 
-                Eigen::Matrix<float, 3, 12> edge_vertex_coordinates;
-                InterpolateEdgeVertices(vertexCoords, vertexSDF, &edge_vertex_coordinates);
+        const int *table_row = triangleTable[index];
 
-                const int* table_row = triangleTable[index];
+        int table_col = 0;
+        while (table_row[table_col] != -1)
+        {
+            mesh->vertices.emplace_back(edge_vertex_coordinates.col(table_row[table_col + 2]));
+            mesh->vertices.emplace_back(edge_vertex_coordinates.col(table_row[table_col + 1]));
+            mesh->vertices.emplace_back(edge_vertex_coordinates.col(table_row[table_col]));
+            mesh->indices.push_back(*nextIDX);
+            mesh->indices.push_back((*nextIDX) + 1);
+            mesh->indices.push_back((*nextIDX) + 2);
+            const Eigen::Vector3f &p0 = mesh->vertices[*nextIDX];
+            const Eigen::Vector3f &p1 = mesh->vertices[*nextIDX + 1];
+            const Eigen::Vector3f &p2 = mesh->vertices[*nextIDX + 2];
+            Eigen::Vector3f px = (p1 - p0);
+            Eigen::Vector3f py = (p2 - p0);
+            Eigen::Vector3f n = px.cross(py).normalized();
+            mesh->normals.push_back(n);
+            mesh->normals.push_back(n);
+            mesh->normals.push_back(n);
+            *nextIDX += 3;
+            table_col += 3;
+        }
+    }
 
-                int table_col = 0;
-                while (table_row[table_col] != -1)
-                {
-                    mesh->vertices.emplace_back(edge_vertex_coordinates.col(table_row[table_col + 2]));
-                    mesh->vertices.emplace_back(edge_vertex_coordinates.col(table_row[table_col + 1]));
-                    mesh->vertices.emplace_back(edge_vertex_coordinates.col(table_row[table_col]));
-                    mesh->indices.push_back(*nextIDX);
-                    mesh->indices.push_back((*nextIDX) + 1);
-                    mesh->indices.push_back((*nextIDX) + 2);
-                    const Eigen::Vector3f& p0 = mesh->vertices[*nextIDX];
-                    const Eigen::Vector3f& p1 = mesh->vertices[*nextIDX + 1];
-                    const Eigen::Vector3f& p2 = mesh->vertices[*nextIDX + 2];
-                    Eigen::Vector3f px = (p1 - p0);
-                    Eigen::Vector3f py = (p2 - p0);
-                    Eigen::Vector3f n = px.cross(py).normalized();
-                    mesh->normals.push_back(n);
-                    mesh->normals.push_back(n);
-                    mesh->normals.push_back(n);
-                    *nextIDX += 3;
-                    table_col += 3;
-                }
-            }
+    static int CalculateVertexConfiguration(const Eigen::Matrix<float, 8, 1> &vertexSDF)
+    {
+        return (vertexSDF(0) < 0 ? (1 << 0) : 0) |
+               (vertexSDF(1) < 0 ? (1 << 1) : 0) |
+               (vertexSDF(2) < 0 ? (1 << 2) : 0) |
+               (vertexSDF(3) < 0 ? (1 << 3) : 0) |
+               (vertexSDF(4) < 0 ? (1 << 4) : 0) |
+               (vertexSDF(5) < 0 ? (1 << 5) : 0) |
+               (vertexSDF(6) < 0 ? (1 << 6) : 0) |
+               (vertexSDF(7) < 0 ? (1 << 7) : 0);
+    }
 
-            static int CalculateVertexConfiguration(const Eigen::Matrix<float, 8, 1>& vertexSDF)
-            {
-                return  (vertexSDF(0) < 0 ? (1<<0) : 0) |
-                        (vertexSDF(1) < 0 ? (1<<1) : 0) |
-                        (vertexSDF(2) < 0 ? (1<<2) : 0) |
-                        (vertexSDF(3) < 0 ? (1<<3) : 0) |
-                        (vertexSDF(4) < 0 ? (1<<4) : 0) |
-                        (vertexSDF(5) < 0 ? (1<<5) : 0) |
-                        (vertexSDF(6) < 0 ? (1<<6) : 0) |
-                        (vertexSDF(7) < 0 ? (1<<7) : 0);
-            }
+    static void InterpolateEdgeVertices(const Eigen::Matrix<float, 3, 8> &vertexCoords, const Eigen::Matrix<float, 8, 1> &vertSDF, Eigen::Matrix<float, 3, 12> *edgeCoords)
+    {
+        assert(edgeCoords != nullptr);
+        for (std::size_t i = 0; i < 12; ++i)
+        {
+            const int *pairs = edgeIndexPairs[i];
+            const int edge0 = pairs[0];
+            const int edge1 = pairs[1];
+            // Only interpolate along edges where there is a zero crossing.
+            if ((vertSDF(edge0) < 0 && vertSDF(edge1) >= 0) || (vertSDF(edge0) >= 0 && vertSDF(edge1) < 0))
+                edgeCoords->col(i) = InterpolateVertex(vertexCoords.col(edge0), vertexCoords.col(edge1), vertSDF(edge0), vertSDF(edge1));
+        }
+    }
 
-            static void InterpolateEdgeVertices(const Eigen::Matrix<float, 3, 8>& vertexCoords, const Eigen::Matrix<float, 8, 1>& vertSDF, Eigen::Matrix<float, 3, 12>* edgeCoords)
-            {
-                assert(edgeCoords != nullptr);
-                for (std::size_t i = 0; i < 12; ++i)
-                {
-                    const int* pairs = edgeIndexPairs[i];
-                    const int edge0 = pairs[0];
-                    const int edge1 = pairs[1];
-                    // Only interpolate along edges where there is a zero crossing.
-                    if ((vertSDF(edge0) < 0 && vertSDF(edge1) >= 0) || (vertSDF(edge0) >= 0 && vertSDF(edge1) < 0))
-                        edgeCoords->col(i) = InterpolateVertex(vertexCoords.col(edge0), vertexCoords.col(edge1), vertSDF(edge0), vertSDF(edge1));
-                }
-            }
+    // Performs linear interpolation on two cube corners to find the approximate
+    // zero crossing (surface) value.
+    static inline Vec3 InterpolateVertex(const Vec3 &vertex1, const Vec3 &vertex2, const float &sdf1, const float &sdf2)
+    {
+        const float minDiff = 1e-6;
+        const float sdfDiff = sdf1 - sdf2;
+        if (fabs(sdfDiff) < minDiff)
+        {
+            return Vec3(vertex1 + 0.5 * vertex2);
+        }
+        const float t = sdf1 / sdfDiff;
+        return Vec3(vertex1 + t * (vertex2 - vertex1));
+    }
+};
 
-            // Performs linear interpolation on two cube corners to find the approximate
-            // zero crossing (surface) value.
-            static inline Vec3 InterpolateVertex(const Vec3& vertex1, const Vec3& vertex2, const float& sdf1, const float& sdf2)
-            {
-                const float minDiff = 1e-6;
-                const float sdfDiff = sdf1 - sdf2;
-                if (fabs(sdfDiff) < minDiff)
-                {
-                    return Vec3(vertex1 + 0.5 * vertex2);
-                }
-                const float t = sdf1 / sdfDiff;
-                return Vec3(vertex1 + t * (vertex2 - vertex1));
-            }
-    };
+} // namespace chisel
 
-} // namespace chisel 
-
-#endif // MARCHINGCUBES_H_ 
+#endif // MARCHINGCUBES_H_

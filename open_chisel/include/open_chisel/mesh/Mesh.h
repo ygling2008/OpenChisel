@@ -48,12 +48,14 @@ namespace chisel
                 normals.clear();
                 colors.clear();
                 indices.clear();
+                grids.clear();
             }
 
             Vec3List vertices;
             VertIndexList indices;
             Vec3List normals;
             Vec3List colors;
+            Vec3List grids;
 
     };
     typedef std::shared_ptr<Mesh> MeshPtr;

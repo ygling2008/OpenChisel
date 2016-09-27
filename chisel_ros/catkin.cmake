@@ -6,7 +6,12 @@ find_package(cmake_modules REQUIRED)
 find_package(Eigen REQUIRED)
 find_package(PCL 1.8 REQUIRED)
 include_directories(${Eigen_INCLUDE_DIRS})
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++0x")
+
+set(CMAKE_BUILD_TYPE "Release")
+set(CMAKE_CXX_FLAGS "-std=c++11")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
+
+#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11 -O3")
 
 
 generate_messages(DEPENDENCIES std_msgs sensor_msgs geometry_msgs)

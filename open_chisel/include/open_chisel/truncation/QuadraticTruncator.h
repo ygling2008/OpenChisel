@@ -25,47 +25,51 @@
 namespace chisel
 {
 
-    class QuadraticTruncator : public Truncator
+class QuadraticTruncator : public Truncator
+{
+  public:
+    QuadraticTruncator() = delete;
+
+    QuadraticTruncator(float scale)
+        : scalingFactor(scale)
     {
-        public:
-            QuadraticTruncator() = default;
+    }
 
-            QuadraticTruncator(float quadratic, float linear, float constant, float scale) :
-                quadraticTerm(quadratic), linearTerm(linear), constantTerm(constant), scalingFactor(scale)
-            {
+    virtual ~QuadraticTruncator()
+    {
+    }
 
-            }
+    virtual float GetTruncationDistance(float reading) const
+    {
+        return std::abs(GetQuadraticTerm() * pow(reading, 2) + GetLinearTerm() * reading + GetConstantTerm()) * scalingFactor;
+    }
 
-            virtual ~QuadraticTruncator()
-            {
+    inline float GetQuadraticTerm() const
+    {
+        return quadraticTerm;
+    }
+    inline float GetLinearTerm() const
+    {
+        return linearTerm;
+    }
+    inline float GetConstantTerm() const
+    {
+        return constantTerm;
+    }
+    inline float GetScalingFactor() const
+    {
+        return scalingFactor;
+    }
 
-            }
+  protected:
+    const float quadraticTerm = 0.0019 * 10;
+    const float linearTerm = 0.00152 * 10;
+    const float constantTerm = 0.001504 * 10;
+    const float scalingFactor;
+};
+typedef std::shared_ptr<QuadraticTruncator> QuadraticTruncatorPtr;
+typedef std::shared_ptr<const QuadraticTruncator> QuadraticTruncatorConstPtr;
 
+} // namespace chisel
 
-            float GetTruncationDistance(float reading) const
-            {
-                return std::abs(GetQuadraticTerm() * pow(reading, 2) + GetLinearTerm() * reading + GetConstantTerm()) * scalingFactor;
-            }
-
-            inline float GetQuadraticTerm() const { return quadraticTerm; }
-            inline float GetLinearTerm() const { return linearTerm; }
-            inline float GetConstantTerm() const { return constantTerm; }
-            inline float GetScalingFactor() const { return scalingFactor; }
-            inline void SetQuadraticTerm(float value) { quadraticTerm = value; }
-            inline void SetLinearTerm(float value)  { linearTerm = value; }
-            inline void SetConstantTerm(float value)  { constantTerm = value; }
-            inline void SetScalingFactor(float value)  { scalingFactor = value; }
-
-        protected:
-            float quadraticTerm;
-            float linearTerm;
-            float constantTerm;
-            float scalingFactor;
-
-    };
-    typedef std::shared_ptr<QuadraticTruncator> QuadraticTruncatorPtr;
-    typedef std::shared_ptr<const QuadraticTruncator> QuadraticTruncatorConstPtr;
-
-} // namespace chisel 
-
-#endif // QUADRATICTRUNCATOR_H_ 
+#endif // QUADRATICTRUNCATOR_H_

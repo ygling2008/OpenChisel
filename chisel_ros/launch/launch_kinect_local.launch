@@ -16,10 +16,10 @@
         <param name="color_image_transform" value="/head/kinect2_rgb_optical_frame"/>
         <param name="fusion_mode" value="DepthImage"/>
     
-        <remap from="/depth_image" to="/head/kinect2/qhd/image_depth_rect"/>
-        <remap from="/depth_camera_info" to="/head/kinect2/qhd/camera_info"/>
-        <remap from="/color_image" to="/head/kinect2/qhd/image_color"/>
-        <remap from="/color_camera_info" to="/head/kinect2/qhd/camera_info"/>
+        <remap from="/depth_image" to="/camera/depth/image_raw"/>
+        <remap from="/depth_camera_info" to="/camera/depth/camera_info"/>
+        <remap from="/color_image" to="/camera/rgb/image_raw"/>
+        <remap from="/color_camera_info" to="/camera/rgb/camera_info"/>
         <remap from="/camera/depth_registered/points" to="/camera/depth/points"/>
 
     </node>
